@@ -2,6 +2,8 @@
 #include<vector>
 #include<set>
 #include<algorithm>
+#include<random>
+#include<ctime>
 using namespace std;
 void pailie(set<vector<int> >& all, int a, int b, int c, int d) {
     vector<int>temp(4);
@@ -76,10 +78,10 @@ void show_all(set<vector<int>>& all) {
     cout << endl;
 }
 
-void get_best(set<vector<int>>& all) {
+int get_best(set<vector<int>>& all) {
     int n = all.size();
     if (n == 1)
-        return;
+        return 0;
     vector<float>information(n, 0);
     int i = 0;
     for (auto& it : all) {
@@ -88,19 +90,12 @@ void get_best(set<vector<int>>& all) {
             auto temp = check(it, it2);
             number[temp.first][temp.second]++;
         }
-        /*
-        for (int x = 0; x < 5; ++x) {//输出频数
-            for (int y = 0; y <= x and y < 4; ++y) {
-                cout << number[x][y]<<" ";
-            }
-            cout << endl;
-        }
-        */
+
         //算信息量
-        float probability = 1 / (n-static_cast<float>(1));
-        float the_info=0;//当前符号的信息量
+        float probability = 1 / (n - static_cast<float>(1));
+        float the_info = 0;//当前符号的信息量
         for (int x = 0; x < 5; ++x) {
-            for (int y = 0; y <= x and y<4; ++y) {//全对个数必然不能大于半对个数
+            for (int y = 0; y <= x and y < 4; ++y) {//全对个数必然不能大于半对个数
                 if (number[x][y] == 0)
                     continue;
                 the_info -= probability * number[x][y] * log2(probability * number[x][y]);
@@ -109,38 +104,56 @@ void get_best(set<vector<int>>& all) {
         information[i] = the_info;
         ++i;
     }
-    
-    float best_info = *max_element(information.begin(), information.end());
-    i = 0;
-    int j = 0;//用来控制换行
-    cout << "以下猜测可以获得最大信息量："<< best_info<<"bit" <<endl;
+
+    int index = max_element(information.begin(), information.end())- information.begin();
+
+    return index;
+}
+
+int get_worst(set<vector<int>>& all) {
+    int n = all.size();
+    if (n == 1)
+        return 0;
+    vector<float>information(n, 0);
+    int i = 0;
     for (auto& it : all) {
-        if (information[i++] == best_info) {
-            cout << it[0] << " " << it[1] << " " << it[2] << " " << it[3] << "//";
-            ++j;
-            if (j % 5 == 0)
-                cout << endl;
+        vector<vector<int>>number(5, vector<int>(5, 0));//符号频数
+        for (auto& it2 : all) {//统计
+            auto temp = check(it, it2);
+            number[temp.first][temp.second]++;
         }
+
+        //算信息量
+        float probability = 1 / (n - static_cast<float>(1));
+        float the_info = 0;//当前符号的信息量
+        for (int x = 0; x < 5; ++x) {
+            for (int y = 0; y <= x and y < 4; ++y) {//全对个数必然不能大于半对个数
+                if (number[x][y] == 0)
+                    continue;
+                the_info -= probability * number[x][y] * log2(probability * number[x][y]);
+            }
+        }
+        information[i] = the_info;
+        ++i;
     }
-    cout << endl;
+
+    int index = min_element(information.begin(), information.end()) - information.begin();
+
+    return index;
 }
 
 
-float test_get_info(vector<int>& it,set<vector<int>>& all) {
+int get_random(set<vector<int>>& all) {
+    int n = all.size();
+    return rand()%n;
+}
+float test_get_info(vector<int>& it, set<vector<int>>& all) {
     int n = all.size();
     vector<vector<int>>number(5, vector<int>(5, 0));//符号频数
     for (auto& it2 : all) {//统计
         auto temp = check(it, it2);
         number[temp.first][temp.second]++;
     }
-    /*
-    for (int x = 0; x < 5; ++x) {//输出频数
-        for (int y = 0; y <= x and y < 4; ++y) {
-            cout << number[x][y]<<" ";
-        }
-        cout << endl;
-    }
-    */
     //算信息量
     float probability = 1 / (n - static_cast<float>(1));
     float the_info = 0;//当前符号的信息量
@@ -151,13 +164,14 @@ float test_get_info(vector<int>& it,set<vector<int>>& all) {
             the_info -= probability * number[x][y] * log2(probability * number[x][y]);
         }
     }
- 
+
     return the_info;
 
 }
 
 
 int main() {
+    srand((int)(time(NULL)));
     set<vector<int>>all;
     pailie(all, 1, 2, 3, 4);
     pailie(all, 1, 2, 3, 5);
@@ -175,31 +189,40 @@ int main() {
     pailie(all, 2, 4, 5, 6);
     pailie(all, 3, 4, 5, 6);
     cout << "初始化完毕" << endl;
-    vector<int>test({1,1,2,2});
-
-    int runtime = 1;
-    while (all.size() > 0) {
-        cout << "当前剩余可能" << all.size() << "种：" << endl;
-        if (runtime++ == 1) {
-            cout << "只要猜4个不同的数字就可以获得最大信息量：2.74189bit" << endl;//1 1 2 2 只有0.512668比特信息量
+    set<vector<int>>temp;
+    int sum_times = 0;
+    int statistic[6] = { 0 };
+    for (auto &it:all) {
+        vector<int> true_ans = it;
+        temp = all;
+        int runtime = 0;
+        vector<int>guess({ 1,2,3,4 });
+        bool correct = false;
+        while (temp.size() > 1) {
+            
+            if (runtime++ != 0) {
+                int index= get_best(temp);//在这里采用不同的函数测试get_best，get_worst，get_random
+                auto it2 = temp.begin();
+                while (index--) {
+                    ++it2;
+                }
+                guess = *it2;
+            }
+            auto x_y = check(guess, true_ans);
+            if (x_y.second == 4) {//直接猜对了
+                correct = true;
+            }
+            paichu(temp, guess, x_y.first, x_y.second);
         }
-        else {
-            show_all(all);
-            //计算最佳猜测
-            get_best(all);
+        if (!correct) {//剩最后一种可能的时候，猜测次数需要加一，如果是直接猜中的就不用加
+            runtime++;
         }
+        //cout << runtime << endl;
 
-        
-
-        vector<int>temp(4);
-        cout << "请输入猜测:" << endl;
-        cin >> temp[0] >> temp[1] >> temp[2] >> temp[3];
-        cout << "请输入对应结果全对、半对（半对个数不包括全对个数）:" << endl;
-        int x, y;
-        cin >> y >> x;
-        x += y;
-        paichu(all, temp, x, y);
+        statistic[runtime - 1]++;
+        sum_times += runtime;
     }
-    cout << "不存在可能的解";
+    cout << statistic[0] << " " << statistic[1] << " " << statistic[2] << " " << statistic[3] << " " << statistic[4] << " " << statistic[5] << endl;
+    cout << float(sum_times) / all.size()+1;
     return 0;
 }
